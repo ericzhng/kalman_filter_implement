@@ -1,11 +1,11 @@
 # kalman_filter
 
-A small, modular Python library for the Kalman filter (KF) and extended Kalman filter
-(EKF) with first-class support for multi-channel measurements, including missing channels.
+A small, modular Python library for the Kalman filter (KF), extended Kalman filter
+(EKF) and ensemble Kalman filter (EnKF) with first-class support for multi-channel measurements, including missing channels.
 
 - [docs/theory.md](docs/theory.md) – equations and background
 - [docs/implementation.md](docs/implementation.md) – architecture, conventions, usage
-- [docs/examples.md](docs/examples.md) – linear and nonlinear multi-channel examples
+- [docs/examples.md](docs/examples.md) – linear, nonlinear and Lorenz-63 benchmark examples
 
 ## Install (env_api)
 

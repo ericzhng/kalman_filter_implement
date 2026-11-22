@@ -14,7 +14,12 @@ Date: 2026-11-21
 Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
-from kalman_filter.filters import BaseFilter, ExtendedKalmanFilter, KalmanFilter
+from kalman_filter.filters import (
+    BaseFilter,
+    EnsembleKalmanFilter,
+    ExtendedKalmanFilter,
+    KalmanFilter,
+)
 from kalman_filter.jacobian import numerical_jacobian
 from kalman_filter.metrics import nees, rmse
 from kalman_filter.models import (
@@ -28,6 +33,7 @@ from kalman_filter.types import FilterResult, GaussianState
 
 __all__ = [
     "BaseFilter",
+    "EnsembleKalmanFilter",
     "ExtendedKalmanFilter",
     "FilterResult",
     "GaussianState",

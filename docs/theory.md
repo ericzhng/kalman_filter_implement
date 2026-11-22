@@ -79,7 +79,23 @@ produces a huge false innovation. The model accepts a `residual_fn` for this.
   (large `P`) because the first-order linearisation is poor.
 - Bad initial guesses can make the filter diverge or become over-confident; tune `Q`
   and `P0` and check consistency (below).
-- For stronger nonlinearities consider the unscented or particle filters (not included).
+- For stronger nonlinearities consider the ensemble Kalman filter (below), or the
+  unscented or particle filters (not included).
+
+## 4b. Ensemble Kalman filter (EnKF)
+
+The belief is an ensemble `{x_i}`, `i = 1..N`. Predict: `x_i ← f(x_i, u) + w_i`,
+`w_i ~ N(0, Q)`. Update (perturbed observations), with anomalies `A = X − x̄`,
+`B = Y − ȳ`, `Y_i = h(x_i)`:
+
+```
+P_xy = AᵀB / (N−1),   S = BᵀB / (N−1) + R,   K = P_xy S⁻¹
+x_i ← x_i + K (z + v_i − h(x_i)),   v_i ~ N(0, R)
+```
+
+No Jacobians are needed and the covariance is the ensemble sample covariance. As
+`N → ∞` it matches the KF for linear-Gaussian models. Small `N` gives sampling error
+and under-dispersion (over-confidence); use more members or multiplicative inflation.
 
 ## 5. Checking a filter: consistency
 

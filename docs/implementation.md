@@ -13,7 +13,8 @@ src/kalman_filter/
 ├── filters/
 │   ├── base.py       BaseFilter: predict / update / step / run
 │   ├── kalman.py     KalmanFilter  (uses constant F, H)
-│   └── extended.py   ExtendedKalmanFilter (Jacobians at the current mean)
+│   ├── extended.py   ExtendedKalmanFilter (Jacobians at the current mean)
+│   └── ensemble.py   EnsembleKalmanFilter (perturbed-observation EnKF, Jacobian-free)
 ├── simulation.py     simulate(): ground truth + noisy, possibly missing, measurements
 └── metrics.py        rmse, nees
 examples/             runnable linear and nonlinear multi-channel demos

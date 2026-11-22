@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 
 from kalman_filter import (
+    EnsembleKalmanFilter,
     ExtendedKalmanFilter,
     KalmanFilter,
     LinearModel,
@@ -94,3 +95,26 @@ def test_shape_validation() -> None:
     r"""Checks that a mismatched initial state raises ``ValueError``."""
     with pytest.raises(ValueError):
         KalmanFilter(_cv_model(), np.zeros(3), np.eye(3))
+
+
+def test_enkf_approaches_kf_on_linear_model() -> None:
+    r"""Checks that a large-ensemble EnKF matches the exact KF on a linear model."""
+    model = _cv_model()
+    states, z = simulate(model, np.array([0.0, 0.0, 1.0, 1.0]), 100, np.random.default_rng(0))
+    x0, P0 = np.zeros(4), np.eye(4)
+    kf = KalmanFilter(model, x0, P0).run(z)
+    enkf = EnsembleKalmanFilter(model, x0, P0, n_members=2000, rng=np.random.default_rng(1)).run(z)
+    assert np.abs(enkf.filtered_means - kf.filtered_means).max() < 0.5
+    assert np.abs(enkf.filtered_means[-1] - states[-1]).max() < 1.5
+
+
+def test_enkf_skips_missing_channels_and_validates() -> None:
+    r"""Checks NaN handling and argument validation of the EnKF."""
+    enkf = EnsembleKalmanFilter(_cv_model(), np.zeros(4), np.eye(4), n_members=20)
+    before = enkf.ensemble.copy()
+    enkf.update(np.full(3, np.nan))
+    np.testing.assert_array_equal(before, enkf.ensemble)
+    enkf.update(np.array([1.0, np.nan, np.nan]))
+    assert np.isnan(enkf.last_innovation[1]) and not np.isnan(enkf.last_innovation[0])
+    with pytest.raises(ValueError):
+        EnsembleKalmanFilter(_cv_model(), np.zeros(4), np.eye(4), n_members=1)
