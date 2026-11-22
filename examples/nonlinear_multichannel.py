@@ -1,6 +1,6 @@
 r"""Module: examples.nonlinear_multichannel
 
-Description: EKF tracking a coordinated-turn target with two range-bearing stations (4
+Description: EKF and EnKF tracking a coordinated-turn target with two range-bearing stations (4
     channels). State is ``[x, y, vx, vy, omega]``; bearing residuals are wrapped.
     See docs/examples.md.
 
@@ -18,7 +18,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
-from kalman_filter import ExtendedKalmanFilter, NonlinearModel, nees, rmse, simulate  # noqa: E402
+from kalman_filter import (  # noqa: E402
+    EnsembleKalmanFilter,
+    ExtendedKalmanFilter,
+    NonlinearModel,
+    nees,
+    rmse,
+    simulate,
+)
 from kalman_filter.types import FloatArray  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -118,27 +125,35 @@ def main() -> None:
 
     x_init = np.array([25.0, 5.0, 4.0, 1.0, 0.0])
     P0 = np.diag([25.0, 25.0, 4.0, 4.0, 0.05**2])
-    ekf = ExtendedKalmanFilter(model, x_init, P0)
-    result = ekf.run(z)
+    # KalmanFilter needs a LinearModel, so it cannot run on this nonlinear problem.
+    result = ExtendedKalmanFilter(model, x_init, P0).run(z)
+    enkf = EnsembleKalmanFilter(
+        model, x_init, P0, n_members=200, rng=np.random.default_rng(2), inflation=1.02
+    ).run(z)
 
     truth = states[1:]
-    logger.info("EKF RMSE [x, y, vx, vy, w]: %s", np.round(rmse(result.filtered_means, truth), 3))
-    logger.info("Final omega estimate %.3f (true 0.100)", result.filtered_means[-1, 4])
-    logger.info(
-        "Mean NEES (expect ~5): %.2f",
-        nees(result.filtered_means, result.filtered_covs, truth).mean(),
-    )
+    for name, res in (("EKF", result), ("EnKF", enkf)):
+        logger.info(
+            "%-4s RMSE [x, y, vx, vy, w]: %s  final omega %.3f (true 0.100)  "
+            "mean NEES (expect ~5): %.2f",
+            name,
+            np.round(rmse(res.filtered_means, truth), 3),
+            res.filtered_means[-1, 4],
+            nees(res.filtered_means, res.filtered_covs, truth).mean(),
+        )
 
     OUTPUT_DIR.mkdir(exist_ok=True)
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
     axes[0].plot(truth[:, 0], truth[:, 1], "k-", label="truth")
     axes[0].plot(result.filtered_means[:, 0], result.filtered_means[:, 1], "r-", label="EKF")
+    axes[0].plot(enkf.filtered_means[:, 0], enkf.filtered_means[:, 1], "g--", label="EnKF")
     axes[0].plot(*STATIONS.T, "b^", label="stations")
     axes[0].set(xlabel="x", ylabel="y", title="Trajectory", aspect="equal")
     axes[0].legend()
     t = np.arange(1, steps + 1) * DT
     axes[1].plot(t, np.full(steps, 0.1), "k-", label="true omega")
     axes[1].plot(t, result.filtered_means[:, 4], "r-", label="EKF omega")
+    axes[1].plot(t, enkf.filtered_means[:, 4], "g--", label="EnKF omega")
     sigma = np.sqrt(result.filtered_covs[:, 4, 4])
     axes[1].fill_between(
         t,
