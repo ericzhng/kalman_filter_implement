@@ -1,5 +1,10 @@
-"""Module: kalman_filter.types
-Description: Shared data containers (Gaussian belief and filter run results).
+r"""Module: kalman_filter.types
+
+Description: Shared data containers: the Gaussian belief and the filter run results.
+
+Author: Hui Zhang
+Date: 2026-11-21
+Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
 import logging
@@ -10,12 +15,14 @@ from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
 
+__all__ = ["FilterResult", "FloatArray", "GaussianState"]
+
 FloatArray = NDArray[np.float64]
 
 
 @dataclass(frozen=True)
 class GaussianState:
-    """A Gaussian belief N(mean, cov) over the state vector.
+    r"""A Gaussian belief N(mean, cov) over the state vector.
 
     Attributes:
         mean: State mean, shape ``(n,)``.
@@ -28,7 +35,7 @@ class GaussianState:
 
 @dataclass(frozen=True)
 class FilterResult:
-    """Time series produced by ``BaseFilter.run``.
+    r"""Holds the time series produced by ``BaseFilter.run``.
 
     Row ``k`` corresponds to time ``k + 1``; the prior is time 0. Channels that
     were missing (NaN) at a step have NaN innovations.

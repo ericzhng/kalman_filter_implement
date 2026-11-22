@@ -1,5 +1,11 @@
-"""Module: kalman_filter.models.nonlinear
-Description: Nonlinear model defined by arbitrary f and h with optional analytic Jacobians.
+r"""Module: kalman_filter.models.nonlinear
+
+Description: Nonlinear model defined by arbitrary ``f`` and ``h`` with optional analytic
+    Jacobians (numerical ones are used otherwise).
+
+Author: Hui Zhang
+Date: 2026-11-21
+Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
 import logging
@@ -12,13 +18,20 @@ from kalman_filter.types import FloatArray
 
 logger = logging.getLogger(__name__)
 
+__all__ = ["MeasurementFn", "NonlinearModel", "ResidualFn", "TransitionFn"]
+
 TransitionFn = Callable[[FloatArray, FloatArray | None], FloatArray]
+"""State transition ``f(x, u)``; ``u`` may be ``None``."""
+
 MeasurementFn = Callable[[FloatArray], FloatArray]
+"""Measurement function ``h(x)``."""
+
 ResidualFn = Callable[[FloatArray, FloatArray], FloatArray]
+"""Innovation function ``(z, z_pred) -> z - z_pred`` (may wrap angles)."""
 
 
 class NonlinearModel:
-    """Model ``x_k = f(x_{k-1}, u) + w``, ``z_k = h(x_k) + v``.
+    r"""Model ``x_k = f(x_{k-1}, u) + w``, ``z_k = h(x_k) + v``.
 
     Jacobians default to central-difference approximations when not supplied.
 
@@ -52,36 +65,82 @@ class NonlinearModel:
 
     @property
     def state_dim(self) -> int:
-        """Number of states ``n``."""
+        r"""Number of states ``n``.
+
+        Returns:
+            The state dimension.
+        """
         return self.Q.shape[0]
 
     @property
     def meas_dim(self) -> int:
-        """Number of measurement channels ``m``."""
+        r"""Number of measurement channels ``m``.
+
+        Returns:
+            The measurement dimension.
+        """
         return self.R.shape[0]
 
     def propagate(self, x: FloatArray, u: FloatArray | None = None) -> FloatArray:
-        """Return ``f(x, u)``."""
+        r"""Applies ``f(x, u)``.
+
+        Args:
+            x: State, shape ``(n,)``.
+            u: Optional control input.
+
+        Returns:
+            The next state, shape ``(n,)``.
+        """
         return np.asarray(self._f(x, u), dtype=float)
 
     def measure(self, x: FloatArray) -> FloatArray:
-        """Return ``h(x)``."""
+        r"""Applies ``h(x)``.
+
+        Args:
+            x: State, shape ``(n,)``.
+
+        Returns:
+            The expected measurement, shape ``(m,)``.
+        """
         return np.asarray(self._h(x), dtype=float)
 
     def residual(self, z: FloatArray, z_pred: FloatArray) -> FloatArray:
-        """Return the innovation, using ``residual_fn`` if provided."""
+        r"""Computes the innovation, using ``residual_fn`` if provided.
+
+        Args:
+            z: Measurement, shape ``(m,)``.
+            z_pred: Predicted measurement, shape ``(m,)``.
+
+        Returns:
+            The innovation, shape ``(m,)``.
+        """
         if self._residual_fn is not None:
             return self._residual_fn(z, z_pred)
         return z - z_pred
 
     def state_jacobian(self, x: FloatArray, u: FloatArray | None = None) -> FloatArray:
-        """Return the Jacobian of ``f`` at ``x`` (analytic if given, else numerical)."""
+        r"""Computes the Jacobian of ``f`` (analytic if given, else numerical).
+
+        Args:
+            x: Linearisation point, shape ``(n,)``.
+            u: Optional control input.
+
+        Returns:
+            The Jacobian, shape ``(n, n)``.
+        """
         if self._f_jac is not None:
             return np.asarray(self._f_jac(x, u), dtype=float)
         return numerical_jacobian(lambda s: self.propagate(s, u), x)
 
     def measurement_jacobian(self, x: FloatArray) -> FloatArray:
-        """Return the Jacobian of ``h`` at ``x`` (analytic if given, else numerical)."""
+        r"""Computes the Jacobian of ``h`` (analytic if given, else numerical).
+
+        Args:
+            x: Linearisation point, shape ``(n,)``.
+
+        Returns:
+            The Jacobian, shape ``(m, n)``.
+        """
         if self._h_jac is not None:
             return np.asarray(self._h_jac(x), dtype=float)
         return numerical_jacobian(self.measure, x)

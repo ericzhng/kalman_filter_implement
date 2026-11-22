@@ -1,8 +1,12 @@
-"""Module: examples.nonlinear_multichannel
-Description: EKF tracking a coordinated-turn target with two range-bearing stations (4 channels).
+r"""Module: examples.nonlinear_multichannel
 
-State is [x, y, vx, vy, omega] with unknown turn rate omega. Dynamics are nonlinear
-(numerical Jacobian); the measurement Jacobian is analytic. Bearing residuals are wrapped.
+Description: EKF tracking a coordinated-turn target with two range-bearing stations (4
+    channels). State is ``[x, y, vx, vy, omega]``; bearing residuals are wrapped.
+    See docs/examples.md.
+
+Author: Hui Zhang
+Date: 2026-11-21
+Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
 import logging
@@ -25,7 +29,15 @@ STATIONS = np.array([[-60.0, -20.0], [100.0, -20.0]])
 
 
 def turn_transition(x: FloatArray, u: FloatArray | None) -> FloatArray:
-    """Coordinated-turn transition with turn rate ``omega`` in ``x[4]``."""
+    r"""Applies a coordinated-turn transition with turn rate ``omega`` in ``x[4]``.
+
+    Args:
+        x: State ``[x, y, vx, vy, omega]``, shape ``(5,)``.
+        u: Control input (unused).
+
+    Returns:
+        The next state, shape ``(5,)``.
+    """
     px, py, vx, vy, w = x
     wt = w * DT
     s = DT * np.sinc(wt / np.pi)  # sin(w dt) / w, safe at w = 0
@@ -37,13 +49,27 @@ def turn_transition(x: FloatArray, u: FloatArray | None) -> FloatArray:
 
 
 def range_bearing(x: FloatArray) -> FloatArray:
-    """Stacked ``[range_i, bearing_i]`` from every station."""
+    r"""Computes stacked ``[range_i, bearing_i]`` from every station.
+
+    Args:
+        x: State ``[x, y, vx, vy, omega]``, shape ``(5,)``.
+
+    Returns:
+        The noise-free measurement, shape ``(4,)``.
+    """
     d = x[None, :2] - STATIONS
     return np.column_stack([np.hypot(d[:, 0], d[:, 1]), np.arctan2(d[:, 1], d[:, 0])]).ravel()
 
 
 def range_bearing_jacobian(x: FloatArray) -> FloatArray:
-    """Analytic Jacobian of ``range_bearing``, shape ``(4, 5)``."""
+    r"""Computes the analytic Jacobian of :func:`range_bearing`.
+
+    Args:
+        x: State ``[x, y, vx, vy, omega]``, shape ``(5,)``.
+
+    Returns:
+        The Jacobian, shape ``(4, 5)``.
+    """
     jac = np.zeros((2 * len(STATIONS), 5))
     for i, (dx, dy) in enumerate(x[None, :2] - STATIONS):
         r2 = dx**2 + dy**2
@@ -54,14 +80,22 @@ def range_bearing_jacobian(x: FloatArray) -> FloatArray:
 
 
 def wrap_bearing(z: FloatArray, z_pred: FloatArray) -> FloatArray:
-    """Innovation with bearing channels (odd indices) wrapped to ``[-pi, pi)``."""
+    r"""Computes the innovation with bearing channels (odd indices) wrapped to ``[-pi, pi)``.
+
+    Args:
+        z: Measurement, shape ``(4,)``.
+        z_pred: Predicted measurement, shape ``(4,)``.
+
+    Returns:
+        The wrapped innovation, shape ``(4,)``.
+    """
     nu = z - z_pred
     nu[1::2] = (nu[1::2] + np.pi) % (2 * np.pi) - np.pi
     return nu
 
 
 def main() -> None:
-    """Simulate, filter with an EKF and plot the nonlinear tracking problem."""
+    r"""Simulates, filters with an EKF and plots the nonlinear tracking problem."""
     rng = np.random.default_rng(1)
     steps = 200
 

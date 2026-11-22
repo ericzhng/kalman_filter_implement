@@ -1,10 +1,12 @@
-"""Module: examples.linear_multichannel
-Description: Linear KF fusing three heterogeneous sensor channels (with dropouts) for a 2D target.
+r"""Module: examples.linear_multichannel
 
-Sensors:
-    A: position (x, y), accurate, 10% dropout per channel.
-    B: position (x, y), noisy, always available.
-    C: velocity (vx, vy), 40% dropout per channel.
+Description: Linear KF fusing three heterogeneous sensor channels (with dropouts) for a 2D
+    target. Sensor A: position, 10% dropout; B: noisy position; C: velocity, 40% dropout.
+    See docs/examples.md.
+
+Author: Hui Zhang
+Date: 2026-11-21
+Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
 import logging
@@ -24,7 +26,7 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 
 
 def main() -> None:
-    """Simulate, filter and plot the multi-channel linear tracking problem."""
+    r"""Simulates, filters and plots the multi-channel linear tracking problem."""
     rng = np.random.default_rng(0)
     dt, steps = 0.1, 400
 

@@ -1,5 +1,16 @@
-"""Module: kalman_filter.metrics
+r"""Module: kalman_filter.metrics
+
 Description: Accuracy and consistency metrics (RMSE, NEES) for evaluating filters.
+
+Example:
+    >>> import numpy as np
+    >>> from kalman_filter.metrics import rmse
+    >>> rmse(np.array([[1.0], [3.0]]), np.zeros((2, 1))).round(4).tolist()
+    [2.2361]
+
+Author: Hui Zhang
+Date: 2026-11-21
+Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
 import logging
@@ -10,9 +21,11 @@ from kalman_filter.types import FloatArray
 
 logger = logging.getLogger(__name__)
 
+__all__ = ["nees", "rmse"]
+
 
 def rmse(estimate: FloatArray, truth: FloatArray) -> FloatArray:
-    """Per-component root-mean-square error over time.
+    r"""Computes the per-component root-mean-square error over time.
 
     Args:
         estimate: Estimates, shape ``(T, d)``.
@@ -25,7 +38,7 @@ def rmse(estimate: FloatArray, truth: FloatArray) -> FloatArray:
 
 
 def nees(means: FloatArray, covs: FloatArray, truth: FloatArray) -> FloatArray:
-    """Normalised estimation error squared ``e^T P^-1 e`` per step.
+    r"""Computes the normalised estimation error squared ``e^T P^-1 e`` per step.
 
     For a consistent filter its average is close to the state dimension.
 

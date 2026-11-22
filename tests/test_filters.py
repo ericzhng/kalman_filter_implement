@@ -1,6 +1,10 @@
-"""
-Module: tests.test_filters
-Description: Unit tests for the Kalman filter, EKF, Jacobians and missing-channel handling.
+r"""Module: tests.test_filters
+
+Description: Unit tests for the KF, EKF, Jacobians and missing-channel handling.
+
+Author: Hui Zhang
+Date: 2026-11-21
+Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
 import logging
@@ -23,11 +27,17 @@ logger = logging.getLogger(__name__)
 
 
 def _cv_model() -> LinearModel:
+    r"""Builds a 2D constant-velocity model with three position channels.
+
+    Returns:
+        The linear model.
+    """
     H = np.array([[1.0, 0, 0, 0], [0, 1.0, 0, 0], [1.0, 0, 0, 0]])
     return constant_velocity_model(2, 0.1, 0.5, H, np.diag([1.0, 1.0, 4.0]))
 
 
 def test_scalar_kf_matches_hand_computation() -> None:
+    r"""Checks a scalar KF step against the hand-computed gain, mean and variance."""
     model = LinearModel(F=[[1.0]], H=[[1.0]], Q=[[1.0]], R=[[1.0]])
     kf = KalmanFilter(model, np.array([0.0]), np.array([[1.0]]))
     kf.predict()  # P = 2
@@ -37,6 +47,7 @@ def test_scalar_kf_matches_hand_computation() -> None:
 
 
 def test_ekf_equals_kf_on_linear_model() -> None:
+    r"""Checks that the EKF reproduces the KF exactly on a linear model."""
     model = _cv_model()
     _, z = simulate(model, np.array([0.0, 0.0, 1.0, 1.0]), 50, np.random.default_rng(0))
     x0, P0 = np.zeros(4), np.eye(4)
@@ -47,6 +58,7 @@ def test_ekf_equals_kf_on_linear_model() -> None:
 
 
 def test_missing_channels_are_skipped() -> None:
+    r"""Checks that NaN channels are skipped and all-NaN updates leave the belief unchanged."""
     model = _cv_model()
     kf = KalmanFilter(model, np.zeros(4), np.eye(4))
     before = kf.state
@@ -58,12 +70,14 @@ def test_missing_channels_are_skipped() -> None:
 
 
 def test_numerical_jacobian_matches_analytic() -> None:
+    r"""Checks the central-difference Jacobian against the analytic one."""
     x = np.array([1.0, 2.0])
     jac = numerical_jacobian(lambda s: np.array([s[0] * s[1], np.sin(s[0])]), x)
     np.testing.assert_allclose(jac, [[2.0, 1.0], [np.cos(1.0), 0.0]], atol=1e-7)
 
 
 def test_ekf_tracks_nonlinear_range_model() -> None:
+    r"""Checks EKF accuracy and consistency on a nonlinear range measurement."""
     model = NonlinearModel(
         f=lambda x, u: np.array([x[0] + 0.1 * x[1], x[1]]),
         h=lambda x: np.array([np.hypot(x[0] + 10.0, 5.0)]),
@@ -77,5 +91,6 @@ def test_ekf_tracks_nonlinear_range_model() -> None:
 
 
 def test_shape_validation() -> None:
+    r"""Checks that a mismatched initial state raises ``ValueError``."""
     with pytest.raises(ValueError):
         KalmanFilter(_cv_model(), np.zeros(3), np.eye(3))

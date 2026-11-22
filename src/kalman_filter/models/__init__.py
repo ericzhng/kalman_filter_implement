@@ -1,5 +1,11 @@
-"""Module: kalman_filter.models
-Description: State-space model definitions (linear and nonlinear).
+r"""Module: kalman_filter.models
+
+Description: State-space model definitions (linear and nonlinear). See
+    :mod:`kalman_filter.filters` for the estimators that consume them.
+
+Author: Hui Zhang
+Date: 2026-11-21
+Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
 from kalman_filter.models.base import StateSpaceModel

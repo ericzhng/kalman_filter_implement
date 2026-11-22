@@ -61,12 +61,11 @@ and accuracy. `f` has the signature `f(x, u)` where `u` may be `None`.
 import numpy as np
 from kalman_filter import KalmanFilter, constant_velocity_model, simulate
 
-H = np.array([[1.0, 0, 0, 0], [0, 1.0, 0, 0]])          # measure x, y
+H = np.array([[1.0, 0, 0, 0], [0, 1.0, 0, 0]])  # measure x, y
 model = constant_velocity_model(dim=2, dt=0.1, accel_std=1.0, H=H, R=np.eye(2))
-states, z = simulate(model, np.array([0, 0, 5.0, 2.0]), steps=200,
-                     rng=np.random.default_rng(0))
+states, z = simulate(model, np.array([0, 0, 5.0, 2.0]), steps=200, rng=np.random.default_rng(0))
 result = KalmanFilter(model, np.zeros(4), 10 * np.eye(4)).run(z)
-result.filtered_means      # (200, 4)
+result.filtered_means  # (200, 4)
 ```
 
 Step-by-step use (e.g. streaming data): `kf.predict(u)`, then `kf.update(z)`, or

@@ -1,5 +1,10 @@
-"""Module: kalman_filter.filters.base
-Description: Shared predict/update/run machinery; subclasses supply the linearisation.
+r"""Module: kalman_filter.filters.base
+
+Description: Shared predict/update/run machinery; subclasses only supply the linearisation.
+
+Author: Hui Zhang
+Date: 2026-11-21
+Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
 import logging
@@ -12,9 +17,11 @@ from kalman_filter.types import FilterResult, FloatArray, GaussianState
 
 logger = logging.getLogger(__name__)
 
+__all__ = ["BaseFilter"]
+
 
 class BaseFilter(ABC):
-    """Gaussian filter with a covariance-form predict step and Joseph-form update.
+    r"""Gaussian filter with a covariance-form predict step and Joseph-form update.
 
     Missing measurement channels (NaN entries in ``z``) are skipped, which makes
     asynchronous multi-sensor data a first-class use case.
@@ -42,19 +49,34 @@ class BaseFilter(ABC):
 
     @property
     def state(self) -> GaussianState:
-        """Current belief as an immutable snapshot."""
+        r"""Current belief as an immutable snapshot.
+
+        Returns:
+            A copy of the current mean and covariance.
+        """
         return GaussianState(self.x.copy(), self.P.copy())
 
     @abstractmethod
     def _transition_matrix(self, u: FloatArray | None) -> FloatArray:
-        """Return the (linearised) transition matrix at the current mean."""
+        r"""Returns the (linearised) transition matrix at the current mean.
+
+        Args:
+            u: Optional control input.
+
+        Returns:
+            The matrix ``F``, shape ``(n, n)``.
+        """
 
     @abstractmethod
     def _measurement_matrix(self) -> FloatArray:
-        """Return the (linearised) measurement matrix at the current mean."""
+        r"""Returns the (linearised) measurement matrix at the current mean.
+
+        Returns:
+            The matrix ``H``, shape ``(m, n)``.
+        """
 
     def predict(self, u: FloatArray | None = None) -> GaussianState:
-        """Propagate the belief one step: ``x <- f(x, u)``, ``P <- F P F^T + Q``.
+        r"""Propagates the belief one step: ``x <- f(x, u)``, ``P <- F P F^T + Q``.
 
         Args:
             u: Optional control input.
@@ -69,7 +91,7 @@ class BaseFilter(ABC):
         return self.state
 
     def update(self, z: FloatArray) -> GaussianState:
-        """Fuse a measurement vector, ignoring NaN channels.
+        r"""Fuses a measurement vector, ignoring NaN channels.
 
         Args:
             z: Measurement, shape ``(m,)``; NaN marks a missing channel.
@@ -101,12 +123,20 @@ class BaseFilter(ABC):
         return self.state
 
     def step(self, z: FloatArray, u: FloatArray | None = None) -> GaussianState:
-        """Run ``predict`` then ``update``."""
+        r"""Runs ``predict`` then ``update``.
+
+        Args:
+            z: Measurement, shape ``(m,)``; NaN marks a missing channel.
+            u: Optional control input.
+
+        Returns:
+            The posterior belief.
+        """
         self.predict(u)
         return self.update(z)
 
     def run(self, measurements: FloatArray, controls: FloatArray | None = None) -> FilterResult:
-        """Filter a whole measurement sequence starting from the current belief.
+        r"""Filters a whole measurement sequence starting from the current belief.
 
         Args:
             measurements: Array of shape ``(T, m)``; NaN marks missing channels.

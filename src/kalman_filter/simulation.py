@@ -1,5 +1,10 @@
-"""Module: kalman_filter.simulation
-Description: Generate ground-truth trajectories and noisy multi-channel measurements.
+r"""Module: kalman_filter.simulation
+
+Description: Ground-truth trajectories and noisy, possibly incomplete, multi-channel measurements.
+
+Author: Hui Zhang
+Date: 2026-11-21
+Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
 import logging
@@ -11,6 +16,8 @@ from kalman_filter.types import FloatArray
 
 logger = logging.getLogger(__name__)
 
+__all__ = ["simulate"]
+
 
 def simulate(
     model: StateSpaceModel,
@@ -20,7 +27,7 @@ def simulate(
     controls: FloatArray | None = None,
     dropout: FloatArray | None = None,
 ) -> tuple[FloatArray, FloatArray]:
-    """Simulate the model forward from ``x0``.
+    r"""Simulates the model forward from ``x0``.
 
     Args:
         model: Model providing ``propagate``, ``measure``, ``Q`` and ``R``.

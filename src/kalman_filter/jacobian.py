@@ -1,5 +1,17 @@
-"""Module: kalman_filter.jacobian
-Description: Central-difference numerical Jacobian used when no analytic Jacobian is given.
+r"""Module: kalman_filter.jacobian
+
+Description: Central-difference numerical Jacobian, used when no analytic Jacobian is given.
+
+Example:
+    >>> import numpy as np
+    >>> from kalman_filter.jacobian import numerical_jacobian
+    >>> numerical_jacobian(lambda s: np.array([2 * s[0], s[0] * s[1]]),
+    ...                    np.array([1.0, 3.0])).round(4).tolist()
+    [[2.0, 0.0], [3.0, 1.0]]
+
+Author: Hui Zhang
+Date: 2026-11-21
+Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
 import logging
@@ -11,11 +23,13 @@ from kalman_filter.types import FloatArray
 
 logger = logging.getLogger(__name__)
 
+__all__ = ["numerical_jacobian"]
+
 
 def numerical_jacobian(
     fun: Callable[[FloatArray], FloatArray], x: FloatArray, eps: float = 1e-6
 ) -> FloatArray:
-    """Approximate the Jacobian of ``fun`` at ``x`` by central differences.
+    r"""Approximates the Jacobian of ``fun`` at ``x`` by central differences.
 
     Args:
         fun: Vector function mapping shape ``(n,)`` to shape ``(m,)``.

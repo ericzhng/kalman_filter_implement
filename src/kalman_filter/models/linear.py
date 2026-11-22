@@ -1,5 +1,17 @@
-"""Module: kalman_filter.models.linear
-Description: Linear-Gaussian model and helpers to build common multi-channel models.
+r"""Module: kalman_filter.models.linear
+
+Description: Linear-Gaussian model and a helper that builds common multi-channel models.
+
+Example:
+    >>> import numpy as np
+    >>> from kalman_filter.models.linear import constant_velocity_model
+    >>> m = constant_velocity_model(2, 0.1, 1.0, np.eye(4)[:2], np.eye(2))
+    >>> m.state_dim, m.meas_dim
+    (4, 2)
+
+Author: Hui Zhang
+Date: 2026-11-21
+Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
 import logging
@@ -10,9 +22,11 @@ from kalman_filter.types import FloatArray
 
 logger = logging.getLogger(__name__)
 
+__all__ = ["LinearModel", "constant_velocity_model"]
+
 
 class LinearModel:
-    """Linear model ``x_k = F x_{k-1} + B u + w``, ``z_k = H x_k + v``.
+    r"""Linear model ``x_k = F x_{k-1} + B u + w``, ``z_k = H x_k + v``.
 
     Args:
         F: State transition matrix, shape ``(n, n)``.
@@ -46,42 +60,88 @@ class LinearModel:
 
     @property
     def state_dim(self) -> int:
-        """Number of states ``n``."""
+        r"""Number of states ``n``.
+
+        Returns:
+            The state dimension.
+        """
         return self.F.shape[0]
 
     @property
     def meas_dim(self) -> int:
-        """Number of measurement channels ``m``."""
+        r"""Number of measurement channels ``m``.
+
+        Returns:
+            The measurement dimension.
+        """
         return self.H.shape[0]
 
     def propagate(self, x: FloatArray, u: FloatArray | None = None) -> FloatArray:
-        """Return ``F x + B u``."""
+        r"""Applies ``F x + B u``.
+
+        Args:
+            x: State, shape ``(n,)``.
+            u: Optional control input, shape ``(p,)``; ignored when ``B`` is ``None``.
+
+        Returns:
+            The next state, shape ``(n,)``.
+        """
         out = self.F @ x
         if u is not None and self.B is not None:
             out = out + self.B @ u
         return out
 
     def measure(self, x: FloatArray) -> FloatArray:
-        """Return ``H x``."""
+        r"""Applies ``H x``.
+
+        Args:
+            x: State, shape ``(n,)``.
+
+        Returns:
+            The expected measurement, shape ``(m,)``.
+        """
         return self.H @ x
 
     def residual(self, z: FloatArray, z_pred: FloatArray) -> FloatArray:
-        """Return ``z - z_pred``."""
+        r"""Computes ``z - z_pred``.
+
+        Args:
+            z: Measurement, shape ``(m,)``.
+            z_pred: Predicted measurement, shape ``(m,)``.
+
+        Returns:
+            The innovation, shape ``(m,)``.
+        """
         return z - z_pred
 
     def state_jacobian(self, x: FloatArray, u: FloatArray | None = None) -> FloatArray:
-        """Return the constant matrix ``F``."""
+        r"""Returns the constant matrix ``F``.
+
+        Args:
+            x: Linearisation point (unused, the model is linear).
+            u: Control input (unused).
+
+        Returns:
+            The matrix ``F``, shape ``(n, n)``.
+        """
         return self.F
 
     def measurement_jacobian(self, x: FloatArray) -> FloatArray:
-        """Return the constant matrix ``H``."""
+        r"""Returns the constant matrix ``H``.
+
+        Args:
+            x: Linearisation point (unused, the model is linear).
+
+        Returns:
+            The matrix ``H``, shape ``(m, n)``.
+        """
         return self.H
 
 
 def constant_velocity_model(
     dim: int, dt: float, accel_std: float, H: FloatArray, R: FloatArray
 ) -> LinearModel:
-    """Build a nearly-constant-velocity model with state ``[pos_1..d, vel_1..d]``.
+    r"""Builds a nearly-constant-velocity model with state ``[pos_1..d, vel_1..d]``.
 
     Process noise is the discrete white-noise-acceleration model.
 
