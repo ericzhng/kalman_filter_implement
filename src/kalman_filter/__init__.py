@@ -31,11 +31,17 @@ Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
 from kalman_filter.applications import (
+    AttitudeHeadingModel,
+    DroneFlightModel,
     DynamicHedgeRatioFilter,
+    EKFSLAMModel,
+    GPSIMUNavigationModel,
     HarmonicSignalModel,
     LinearForecastAssimilationModel,
     LocalLinearTrendModel,
     RadarTrackingModel,
+    SphericalRadarTrackingModel,
+    WheeledRobotSlipModel,
     create_3d_radar_tracker,
 )
 from kalman_filter.filters import (
@@ -76,11 +82,15 @@ from kalman_filter.simulation import simulate
 from kalman_filter.types import FilterResult, GaussianState, SmootherResult
 
 __all__ = [
+    "AttitudeHeadingModel",
     "BaseFilter",
+    "DroneFlightModel",
     "DynamicHedgeRatioFilter",
+    "EKFSLAMModel",
     "EnsembleKalmanFilter",
     "ExtendedKalmanFilter",
     "FilterResult",
+    "GPSIMUNavigationModel",
     "GaussianState",
     "HarmonicSignalModel",
     "IteratedExtendedKalmanFilter",
@@ -94,8 +104,10 @@ __all__ = [
     "RadarTrackingModel",
     "SensorStream",
     "SmootherResult",
+    "SphericalRadarTrackingModel",
     "StateSpaceModel",
     "UnscentedKalmanFilter",
+    "WheeledRobotSlipModel",
     "autocorrelation",
     "bearing_residual",
     "chi2_consistency_test",
@@ -115,4 +127,5 @@ __all__ = [
     "whiteness_test",
     "wrap_angle",
 ]
+
 
