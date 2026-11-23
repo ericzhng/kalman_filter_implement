@@ -28,15 +28,21 @@ A powerful, modular Python package for Kalman filtering, multi-sensor fusion, an
   - `merge_sensor_streams` aggregates asynchronous timestamped `SensorStream` objects onto a synchronized grid with NaN padding.
   - Modular innovation residual handling with `wrap_angle` for heading/bearing channels.
 
-- **Pre-Built Application Models**:
-  - **Target Tracking & Kinematics**:
-    - `constant_velocity_model`: Nearly Constant Velocity (CV) with discrete acceleration noise.
-    - `constant_acceleration_model`: Constant Acceleration (CA) motion with continuous white-noise jerk.
-    - `coordinated_turn_model`: 2D maneuvering target with unknown turn rate and range/bearing stations.
-    - `random_walk_model`: Online parameter estimation and sensor bias drift.
-  - **Geophysical Data Assimilation**:
-    - `Lorenz96Model`: 40-variable atmospheric benchmark on periodic latitude circle with Gaspari-Cohn localization matrices.
-    - `Lorenz63Model`: 3D chaotic convective model with Runge-Kutta 4 (RK4) integration.
+- **Domain-Specific Applications (`kalman_filter.applications`)**:
+  - **Standard Kalman Filter (KF) Applications**:
+    - **Target & Radar Tracking**: `RadarTrackingModel` and `create_3d_radar_tracker` for 2D/3D Cartesian tracking with Doppler velocity channels and continuous white-noise jerk.
+    - **Linear Time-Series & Finance**: `LocalLinearTrendModel` for stochastic level/trend signal decomposition; `DynamicHedgeRatioFilter` for dynamic pairs trading and rolling beta estimation.
+    - **Meteorology & Signal Processing**: `LinearForecastAssimilationModel` for advection-diffusion atmospheric transport assimilation; `HarmonicSignalModel` for frequency tracking and harmonic denoising.
+  - **Extended Kalman Filter (EKF) Applications**:
+    - **Navigation & Sensor Fusion**: `GPSIMUNavigationModel` for integrated GPS/IMU navigation with accelerometer bias tracking; `AttitudeHeadingModel` for gyro/accelerometer/magnetometer attitude estimation.
+    - **Robotics & Autonomous Vehicles**: `WheeledRobotSlipModel` for differential-drive dead reckoning with dynamic wheel slip; `EKFSLAMModel` for feature-based 2D landmark mapping.
+    - **Aerospace & Multi-Target Tracking**: `SphericalRadarTrackingModel` for 3D flight tracking with range, azimuth, elevation, and Doppler observations; `DroneFlightModel` for drone kinematics with aerodynamic drag and specific thrust controls.
+
+- **Pre-Built Kinematic & Geophysical Models**:
+  - `constant_velocity_model`, `constant_acceleration_model`, `coordinated_turn_model`, `random_walk_model`.
+  - `Lorenz96Model`: 40-variable atmospheric benchmark on periodic latitude circle with Gaspari-Cohn localization matrices.
+  - `Lorenz63Model`: 3D chaotic convective model with Runge-Kutta 4 (RK4) integration.
+
 
 - **Statistical Consistency & Diagnostics**:
   - `rmse` and `mae`: Accuracy evaluation over state trajectories.

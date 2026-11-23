@@ -7,7 +7,15 @@ src/kalman_filter/
 ├── types.py            GaussianState, FilterResult, SmootherResult (data containers)
 ├── localization.py     gaspari_cohn correlation tapering function
 ├── jacobian.py         numerical_jacobian (central differences)
+├── applications/
+│   ├── radar_tracking.py     RadarTrackingModel, create_3d_radar_tracker
+│   ├── finance.py            LocalLinearTrendModel, DynamicHedgeRatioFilter
+│   ├── signal_processing.py  LinearForecastAssimilationModel, HarmonicSignalModel
+│   ├── navigation.py         GPSIMUNavigationModel, AttitudeHeadingModel
+│   ├── robotics.py           WheeledRobotSlipModel, EKFSLAMModel
+│   └── aerospace.py          SphericalRadarTrackingModel, DroneFlightModel
 ├── models/
+
 │   ├── base.py         StateSpaceModel protocol
 │   ├── linear.py       LinearModel, constant_velocity_model
 │   ├── kinematic.py    constant_acceleration_model, coordinated_turn_model, random_walk_model
