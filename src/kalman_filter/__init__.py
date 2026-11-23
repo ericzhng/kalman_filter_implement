@@ -30,6 +30,14 @@ Date: 2026-11-21
 Copyright: (c) 2026 Hui Zhang. All rights reserved.
 """
 
+from kalman_filter.applications import (
+    DynamicHedgeRatioFilter,
+    HarmonicSignalModel,
+    LinearForecastAssimilationModel,
+    LocalLinearTrendModel,
+    RadarTrackingModel,
+    create_3d_radar_tracker,
+)
 from kalman_filter.filters import (
     BaseFilter,
     EnsembleKalmanFilter,
@@ -69,16 +77,21 @@ from kalman_filter.types import FilterResult, GaussianState, SmootherResult
 
 __all__ = [
     "BaseFilter",
+    "DynamicHedgeRatioFilter",
     "EnsembleKalmanFilter",
     "ExtendedKalmanFilter",
     "FilterResult",
     "GaussianState",
+    "HarmonicSignalModel",
     "IteratedExtendedKalmanFilter",
     "KalmanFilter",
+    "LinearForecastAssimilationModel",
     "LinearModel",
+    "LocalLinearTrendModel",
     "Lorenz63Model",
     "Lorenz96Model",
     "NonlinearModel",
+    "RadarTrackingModel",
     "SensorStream",
     "SmootherResult",
     "StateSpaceModel",
@@ -89,6 +102,7 @@ __all__ = [
     "constant_acceleration_model",
     "constant_velocity_model",
     "coordinated_turn_model",
+    "create_3d_radar_tracker",
     "gaspari_cohn",
     "mae",
     "merge_sensor_streams",
@@ -101,3 +115,4 @@ __all__ = [
     "whiteness_test",
     "wrap_angle",
 ]
+
