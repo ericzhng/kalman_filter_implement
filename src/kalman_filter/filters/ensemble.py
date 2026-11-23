@@ -1,8 +1,9 @@
 r"""Module: kalman_filter.filters.ensemble
 
-Description: Stochastic Ensemble Kalman filter (perturbed observations). The belief is a
-    Monte-Carlo ensemble propagated through the true nonlinear ``f``/``h``; no Jacobians
-    are needed and covariances are estimated from the ensemble.
+Description: Stochastic Ensemble Kalman filter (perturbed observations) with support for
+    multiplicative covariance inflation and Gaspari-Cohn spatial covariance localization.
+    The belief is represented by a Monte-Carlo ensemble propagated through true nonlinear
+    dynamics without linearisation or Jacobians.
 
 Example:
     >>> import numpy as np
@@ -22,16 +23,18 @@ import logging
 import numpy as np
 
 from kalman_filter.filters.base import BaseFilter
+from kalman_filter.localization import gaspari_cohn
 from kalman_filter.models.base import StateSpaceModel
 from kalman_filter.types import FloatArray, GaussianState
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["EnsembleKalmanFilter"]
+__all__ = ["EnsembleKalmanFilter", "gaspari_cohn"]
+
 
 
 class EnsembleKalmanFilter(BaseFilter):
-    r"""Stochastic EnKF; ``x``/``P`` are the ensemble sample mean and covariance.
+    r"""Stochastic EnKF with perturbed observations and spatial covariance localization.
 
     Missing channels (NaN) are skipped as in the other filters. Only ``propagate``,
     ``measure`` and ``residual`` of the model are used, so Jacobians are never required.
@@ -44,10 +47,13 @@ class EnsembleKalmanFilter(BaseFilter):
         rng: Random generator; a fresh default one is created if omitted.
         inflation: Multiplicative covariance inflation (>= 1) applied to the ensemble
             anomalies after each update, to counter sampling-induced underdispersion.
+        localization_matrix: Optional cross-covariance tapering matrix of shape ``(n, m)``
+            (e.g., computed via :func:`gaspari_cohn`) to eliminate spurious long-range correlations.
 
     Raises:
-        ValueError: If ``n_members < 2`` or ``inflation < 1``.
+        ValueError: If ``n_members < 2``, ``inflation < 1``, or localization matrix shape invalid.
     """
+
 
     def __init__(
         self,
@@ -57,6 +63,7 @@ class EnsembleKalmanFilter(BaseFilter):
         n_members: int = 100,
         rng: np.random.Generator | None = None,
         inflation: float = 1.0,
+        localization_matrix: FloatArray | None = None,
     ) -> None:
         super().__init__(model, x0, P0)
         if n_members < 2:
@@ -65,6 +72,17 @@ class EnsembleKalmanFilter(BaseFilter):
             raise ValueError("inflation must be >= 1")
         self.rng = rng if rng is not None else np.random.default_rng()
         self.inflation = inflation
+
+        if localization_matrix is not None:
+            loc = np.asarray(localization_matrix, dtype=float)
+            if loc.shape != (model.state_dim, model.meas_dim):
+                raise ValueError(
+                    f"localization_matrix must be shape ({model.state_dim}, {model.meas_dim})"
+                )
+            self.localization_matrix: FloatArray | None = loc
+        else:
+            self.localization_matrix = None
+
         self.ensemble: FloatArray = self.rng.multivariate_normal(
             self.x, self.P, size=n_members, method="eigh"
         )
@@ -114,6 +132,7 @@ class EnsembleKalmanFilter(BaseFilter):
 
         Each member is updated with ``K (z + v_i - h(x_i))``, ``v_i ~ N(0, R)``, where the
         gain ``K = P_xy (P_yy + R)^-1`` is built from ensemble cross-covariances.
+        If ``localization_matrix`` is set, ``P_xy`` is tapered by Schur product.
 
         Args:
             z: Measurement, shape ``(m,)``; NaN marks a missing channel.
@@ -135,6 +154,11 @@ class EnsembleKalmanFilter(BaseFilter):
         A = self.ensemble - self.ensemble.mean(axis=0)
         B = Y - Y.mean(axis=0)
         Pxy = A.T @ B / (N - 1)
+
+        # Apply spatial localization if provided
+        if self.localization_matrix is not None:
+            Pxy = Pxy * self.localization_matrix[:, observed]
+
         S = B.T @ B / (N - 1) + R
         K = np.linalg.solve(S, Pxy.T).T
 
@@ -154,3 +178,4 @@ class EnsembleKalmanFilter(BaseFilter):
         self.last_innovation[observed] = nu
         self.last_nis = float(nu @ np.linalg.solve(S, nu))
         return self.state
+

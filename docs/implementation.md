@@ -4,97 +4,86 @@
 
 ```
 src/kalman_filter/
-├── types.py          GaussianState, FilterResult (data containers)
-├── jacobian.py       numerical_jacobian (central differences)
+├── types.py            GaussianState, FilterResult, SmootherResult (data containers)
+├── localization.py     gaspari_cohn correlation tapering function
+├── jacobian.py         numerical_jacobian (central differences)
 ├── models/
-│   ├── base.py       StateSpaceModel protocol
-│   ├── linear.py     LinearModel, constant_velocity_model
-│   └── nonlinear.py  NonlinearModel (f, h, optional Jacobians / residual)
+│   ├── base.py         StateSpaceModel protocol
+│   ├── linear.py       LinearModel, constant_velocity_model
+│   ├── kinematic.py    constant_acceleration_model, coordinated_turn_model, random_walk_model
+│   ├── assimilation.py Lorenz96Model, Lorenz63Model (geophysical data assimilation)
+│   ├── sensors.py      SensorStream, merge_sensor_streams, wrap_angle, bearing_residual
+│   └── nonlinear.py    NonlinearModel (f, h, optional Jacobians, residual wrapping)
 ├── filters/
-│   ├── base.py       BaseFilter: predict / update / step / run
-│   ├── kalman.py     KalmanFilter  (uses constant F, H)
-│   ├── extended.py   ExtendedKalmanFilter (Jacobians at the current mean)
-│   └── ensemble.py   EnsembleKalmanFilter (perturbed-observation EnKF, Jacobian-free)
-├── simulation.py     simulate(): ground truth + noisy, possibly missing, measurements
-└── metrics.py        rmse, nees
-examples/             runnable linear and nonlinear multi-channel demos
-tests/                pytest suite
+│   ├── base.py         BaseFilter: predict / update / step / run
+│   ├── kalman.py       KalmanFilter (linear-Gaussian optimal filter)
+│   ├── extended.py     ExtendedKalmanFilter (1st-order Jacobian linearization)
+│   ├── iterated.py     IteratedExtendedKalmanFilter (local Gauss-Newton MAP update)
+│   ├── unscented.py    UnscentedKalmanFilter (Scaled Unscented Transform)
+│   ├── ensemble.py     EnsembleKalmanFilter (Monte-Carlo EnKF with spatial localization)
+│   └── smoother.py     rts_smooth (Rauch-Tung-Striebel fixed-interval backward smoother)
+├── simulation.py       simulate(): ground truth + noisy measurements with channel dropouts
+└── metrics.py          rmse, mae, nees, chi2_consistency_test, autocorrelation, whiteness_test
+examples/               runnable multi-sensor, tracking, and data assimilation benchmarks
+tests/                  comprehensive pytest test suite
 ```
 
-## Design
+## Design Architecture
 
-**Models and filters are separate.** A model describes the world
-(`propagate`, `measure`, `Q`, `R`, Jacobians, `residual`); a filter only consumes the
-`StateSpaceModel` protocol. Any object with those members works, so you can add your
-own model class without touching the filters.
+### 1. Separation of Models and Filters
+A state-space model defines the physical problem:
+- `propagate(x, u)`: state transition :math:`f(x, u)`.
+- `measure(x)`: observation mapping :math:`h(x)`.
+- `Q`: process noise covariance matrix :math:`(n \times n)`.
+- `R`: measurement noise covariance matrix :math:`(m \times m)`.
+- `residual(z, z_pred)`: innovation calculation with optional angular wrapping.
+- Optional Jacobians: `state_jacobian(x, u)` and `measurement_jacobian(x)`.
 
-**One update code path.** `BaseFilter` implements predict and the Joseph-form update.
-Subclasses implement just two hooks, `_transition_matrix` and `_measurement_matrix`:
+Filters consume only the `StateSpaceModel` protocol. Any custom simulation, differential equation solver, or physical apparatus implementing this protocol operates seamlessly with all filters.
 
-| Filter | `F` | `H` |
-|---|---|---|
-| `KalmanFilter` | constant `model.F` | constant `model.H` |
-| `ExtendedKalmanFilter` | `model.state_jacobian(x, u)` | `model.measurement_jacobian(x)` |
+### 2. Multi-Channel Sensor Fusion & Missing Data (NaNs)
+Multi-sensor systems frequently operate with asynchronous clocks, varying sample rates, and transmission dropouts.
+In `kalman_filter`:
+- Measurements are vectors of shape `(m,)` or sequences of shape `(T, m)`.
+- A channel that failed to report at time step `k` is indicated by `NaN`.
+- In `BaseFilter.update()`, `UnscentedKalmanFilter.update()`, and `EnsembleKalmanFilter.update()`:
+  - Active indices `observed = np.flatnonzero(~np.isnan(z))` are isolated.
+  - Submatrices :math:`H_{\text{obs}}`, :math:`R_{\text{obs}}`, and :math:`\nu_{\text{obs}}` are extracted.
+  - The Kalman gain and belief updates proceed cleanly without matrix resizing or error.
+  - If all channels are missing at step `k`, the filter propagates the prior without updating.
 
-Because `LinearModel` also implements the Jacobian methods, the EKF reduces exactly to the
-KF on linear models (verified in `tests/test_filters.py`).
+### 3. Estimator Taxonomy
 
-**Multi-channel data.** `z` has one entry per channel. A `NaN` entry means that channel
-is missing at that step; `update` keeps only the observed rows of `H`, `R` and `z`.
-`filter.run` returns `innovations` with NaN in those slots.
+| Filter | Class | Propagation | Update Mechanism | Computational Cost |
+|---|---|---|---|---|
+| Linear KF | `KalmanFilter` | :math:`F x + B u` | Exact linear Kalman gain | :math:`O(n^3 + m^3)` |
+| Extended KF | `ExtendedKalmanFilter` | :math:`f(x, u)` | 1st-order Jacobian linearization | :math:`O(n^3 + m^3)` + Jacobians |
+| Iterated EKF | `IteratedExtendedKalmanFilter` | :math:`f(x, u)` | Gauss-Newton iteration on :math:`h(x)` | :math:`O(K \cdot m^3)` |
+| Unscented KF | `UnscentedKalmanFilter` | :math:`2n+1` sigma points | Statistical covariance matching | :math:`O(n^3 + m^3)` |
+| Ensemble KF | `EnsembleKalmanFilter` | :math:`N` ensemble members | Sample covariance + Gaspari-Cohn | :math:`O(N \cdot n + m^3)` |
+| RTS Smoother| `rts_smooth` | Backward recursion | Backward gain :math:`C_k` | :math:`O(T \cdot n^3)` |
 
-**Nonlinear models.** `NonlinearModel(f, h, Q, R, f_jac=None, h_jac=None, residual_fn=None)`.
-Omitted Jacobians fall back to `numerical_jacobian`; supply analytic ones for speed
-and accuracy. `f` has the signature `f(x, u)` where `u` may be `None`.
+### 4. Covariance Localization for Data Assimilation
+In large spatial models (e.g., weather or oceanography where :math:`n \ge 40` to :math:`10^6`), finite ensemble sizes (:math:`N \ll n`) introduce spurious cross-correlations at long physical distances.
+`kalman_filter.localization.gaspari_cohn` provides the standard 5th-order Gaspari-Cohn (1999) compact polynomial tapering function:
+.. math::
+    \rho_{xy}(r) = \begin{cases}
+    1 - \frac{5}{3} r^2 + \frac{5}{8} r^3 + \frac{1}{2} r^4 - \frac{1}{4} r^5, & 0 \le r \le 1 \\
+    4 - 5r + \frac{5}{3} r^2 + \frac{5}{8} r^3 - \frac{1}{2} r^4 + \frac{1}{12} r^5 - \frac{2}{3r}, & 1 < r \le 2 \\
+    0, & r > 2
+    \end{cases}
 
-## Conventions
+Applying this via Schur product :math:`P_{xy} \leftarrow P_{xy} \odot L_{xy}` eliminates long-distance noise and prevents filter divergence.
 
-- Time 0 is the prior `(x0, P0)`. Row `k` of the measurements and of every
-  `FilterResult` array corresponds to time `k + 1`. `simulate` returns
-  `states` with `T + 1` rows (row 0 is `x0`), so compare `result.filtered_means`
-  against `states[1:]`.
-- Covariances are symmetrised after every step.
-- Process noise is additive: `x_k = f(x_{k-1}, u) + w`.
+## Testing & Quality Assurance
 
-## Usage
-
-```python
-import numpy as np
-from kalman_filter import KalmanFilter, constant_velocity_model, simulate
-
-H = np.array([[1.0, 0, 0, 0], [0, 1.0, 0, 0]])  # measure x, y
-model = constant_velocity_model(dim=2, dt=0.1, accel_std=1.0, H=H, R=np.eye(2))
-states, z = simulate(model, np.array([0, 0, 5.0, 2.0]), steps=200, rng=np.random.default_rng(0))
-result = KalmanFilter(model, np.zeros(4), 10 * np.eye(4)).run(z)
-result.filtered_means  # (200, 4)
+Run the test suite:
+```bash
+pytest
 ```
 
-Step-by-step use (e.g. streaming data): `kf.predict(u)`, then `kf.update(z)`, or
-`kf.step(z, u)`; read the belief from `kf.state`.
-
-For nonlinear problems:
-
-```python
-from kalman_filter import ExtendedKalmanFilter, NonlinearModel
-
-model = NonlinearModel(f=my_f, h=my_h, Q=Q, R=R, h_jac=my_h_jac, residual_fn=wrap)
-ekf = ExtendedKalmanFilter(model, x0, P0)
+Run code formatting and linting:
+```bash
+ruff check .
 ```
-
-## Extending
-
-- **New filter** (e.g. iterated EKF): subclass `BaseFilter`, override the two hooks or
-  `update`.
-- **New model**: implement the `StateSpaceModel` protocol.
-- **Smoothing, UKF**: add modules under `filters/`, export them in
-  `filters/__init__.py` and `kalman_filter/__init__.py`.
-
-## Development
-
-Use the `env_api` conda environment:
-
-```
-C:\Users\ZhangHui\.conda\envs\env_api\python.exe -m pip install -e .
-C:\Users\ZhangHui\.conda\envs\env_api\python.exe -m pytest
-C:\Users\ZhangHui\.conda\envs\env_api\python.exe -m ruff check .
-```
+All code strictly follows Google Python docstring conventions, strict static typing, and PEP-8 line limits.
